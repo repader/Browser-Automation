@@ -2,6 +2,7 @@ import asyncio
 from typing import List
 
 from src.model.BrowserProfile.AsyncBrowserProfile import AsyncBrowserProfile
+from src.utils import ProfileRepository
 
 
 class AsyncProfileManager:
@@ -13,7 +14,7 @@ class AsyncProfileManager:
         )
 
     @classmethod
-    async def run_concurrently(cls, profiles_params: List[dict], max_concurrent: int = 5):
+    async def run_concurrently(cls, profiles_params: List[dict],max_concurrent: int = 5):
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def limited_task(params):

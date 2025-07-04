@@ -9,7 +9,8 @@ from playwright.async_api import BrowserContext, async_playwright
 
 
 from src.model import RabbyAuth
-from src.utils import TabManager
+from src.utils import TabManager, ProfileRepository
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 extension_path = "C:/Users/Repade/AppData/Local/Google/Chrome/User Data/Profile 14/Extensions/acmacodkjbdgmoleebolmdjonilkdbch/0.93.35_0"
@@ -44,53 +45,46 @@ class AsyncBrowserProfile:
         self.context = None
         self.tab_manager = None
 
-        self.meta = {}
-        self._init_metadata()
+        self._profile= None
+        self.meta = None
+        self.repo = ProfileRepository()
 
-    def _init_metadata(self):
-        """Инициализирует метаданные профиля"""
-        default_meta = {
-            "user_agent": self._generate_user_agent(),
-            "locale": random.choice(["en-US", "ru-RU", "fr-FR"]),
-            "timezone": random.choice(["Europe/Moscow", "America/New_York"]),
-            "screen_width": random.randint(1200, 1920),
-            "screen_height": random.randint(800, 1080),
-            "platform": random.choice(["Win32", "MacIntel"]),
-            "created_at": datetime.now().isoformat()
-        }
+    async def initialize(self):
+        """Инициализация профиля"""
+        self._profile = await self.repo.get_profile(self.profile_name)
+        if self._profile is None:
+            self._profile = await self.repo.create_profile(self.profile_name)
 
-        try:
-            if self.meta_file.exists():
-                with open(self.meta_file, 'r', encoding='utf-8') as f:
-                    saved_meta = json.load(f)
-                    # Объединяем с дефолтными значениями
-                    self.meta = {**default_meta, **saved_meta}
-            else:
-                self.meta = default_meta
-                self._save_metadata()
-        except Exception as e:
-            logger.error(f"Metadata initialization failed: {e}")
-            self.meta = default_meta
+        self.meta = self._profile['profile_metadata']
 
-    def _save_metadata(self):
-        """Сохраняет метаданные в файл"""
-        try:
-            with open(self.meta_file, 'w', encoding='utf-8') as f:
-                json.dump(self.meta, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            logger.error(f"Failed to save metadata: {e}")
+    async def save(self):
+        """Сохранение изменений"""
+        if self._profile:
+            await self.repo.session.commit()
 
-    def _generate_user_agent(self) -> str:
-        """Генерирует User-Agent на основе платформы"""
-        platform_map = {
-            "Win32": "(Windows NT 10.0; Win64; x64)",
-            "MacIntel": "(Macintosh; Intel Mac OS X 10_15_7)"
-        }
-        platform = self.meta.get("platform", "Win32")
-        chrome_version = f"{random.randint(100, 115)}.0.{random.randint(1000, 9999)}.{random.randint(10, 99)}"
-        return f"Mozilla/5.0 {platform_map.get(platform)} AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36"
+    def __setitem__(self, key: str, value: Any):
+        """Установка значения через profile['key'] = value"""
+        if not self._profile:
+            raise RuntimeError("Profile not initialized. Use async with or call initialize() first")
+        self._profile[key] = value
 
+    def __getitem__(self, key: str) -> Any:
+        """Получение значения через profile['key']"""
+        if not self._profile:
+            raise RuntimeError("Profile not initialized. Use async with or call initialize() first")
+        return self._profile[key]
+
+    async def update(self, **kwargs):
+        """Массовое обновление метаданных"""
+        if not self._profile:
+            await self.initialize()
+
+        for key, value in kwargs.items():
+            self[key] = value
+
+        await self.save()
     async def launch(self) -> BrowserContext:
+        await self.initialize()
         """Запуск браузера с оптимизированными stealth-настройками"""
         self.playwright = await async_playwright().start()
         logger.debug("Инициализация Playwright завершена")
@@ -100,8 +94,8 @@ class AsyncBrowserProfile:
             "user_data_dir": str(self.profile_path),
             "headless": self.headless,
             "viewport": {
-                "width": self.meta["screen_width"],
-                "height": self.meta["screen_height"]
+                "width": self.meta["screen"]["width"],
+                "height": self.meta["screen"]["height"],
             },
             "locale": self.meta["locale"],
             "timezone_id": self.meta["timezone"],

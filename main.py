@@ -1,7 +1,10 @@
 import asyncio
 from src.model import AsyncProfileManager
+from src.utils import init_db
+
 
 async def main():
+    await init_db()
     profiles_config = [
         {
             "profile_name": "profile_async1",
@@ -21,7 +24,7 @@ async def main():
             ]
         },
     ]
-    await AsyncProfileManager.run_concurrently(profiles_config, max_concurrent=3)
+    await AsyncProfileManager.run_concurrently(profiles_config,max_concurrent=3)
 
 if __name__ == "__main__":
     target = input("Создать профили - 1\nЗапустить профили - 2\n")
@@ -29,5 +32,4 @@ if __name__ == "__main__":
     if target == "1":
         asyncio.run(main())
     elif target == "2":
-        print("123")
-        print("123")
+        pass
