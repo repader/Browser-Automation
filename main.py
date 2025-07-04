@@ -29,4 +29,4 @@ if __name__ == "__main__":
     if target == "1":
         asyncio.run(main())
     elif target == "2":
-        pass
+        print("123")
