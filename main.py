@@ -30,3 +30,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     elif target == "2":
         print("123")
+        print("123")
