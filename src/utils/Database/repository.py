@@ -28,7 +28,7 @@ class ProfileRepository:
         profile = Profile(name=name)
         profile.update_metadata(
             user_agent=self._generate_user_agent(),
-            locale=random.choice(["en-US", "ru-RU", "fr-FR"]),
+            locale=random.choice(["en-US", "ru-RU", "fr-FR", "es-ES"]),
             timezone=random.choice(["Europe/Moscow", "America/New_York"]),
             screen={
                 "width": random.randint(1200, 1920),
@@ -41,3 +41,13 @@ class ProfileRepository:
             session.add(profile)
             await session.commit()
         return profile
+    async def save_profile(self, profile: Profile):
+        async with async_session() as session:
+            session.add(profile)
+            await session.commit()
+
+    async def get_all_profiles(self,):
+        async with async_session() as session:
+            result = await session.execute(select(Profile).order_by(Profile.id))
+            profiles = result.scalars().all()
+            return profiles
