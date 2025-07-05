@@ -28,7 +28,7 @@ class ProfileRepository:
         profile = Profile(name=name)
         profile.update_metadata(
             user_agent=self._generate_user_agent(),
-            locale=random.choice(["en-US", "ru-RU", "fr-FR", "es-ES"]),
+            locale=random.choice(["en-US", "ru-RU"]),
             timezone=random.choice(["Europe/Moscow", "America/New_York"]),
             screen={
                 "width": random.randint(1200, 1920),

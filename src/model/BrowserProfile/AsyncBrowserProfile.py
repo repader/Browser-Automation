@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -9,7 +10,7 @@ from playwright.async_api import BrowserContext, async_playwright
 
 
 from src.model import RabbyAuth
-from src.utils import TabManager, ProfileRepository
+from src.utils import TabManager, ProfileRepository, Profile, async_session
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class AsyncBrowserProfile:
         self.context = None
         self.tab_manager = None
 
-        self._profile= None
+        self._profile: Optional[Profile] = None
         self.meta = None
         self.repo = ProfileRepository()
 
@@ -125,7 +126,8 @@ class AsyncBrowserProfile:
             "--disable-features=OptimizationHints,TranslateUI",
             "--disable-component-extensions-with-background-pages",
             "--disable-logging",
-            "--disable-software-rasterizer"
+            "--disable-software-rasterizer",
+
         ]
 
         # Добавляем расширения если они есть
@@ -253,7 +255,6 @@ class AsyncBrowserProfile:
         try:
             await self.launch()
             actions_to_execute = actions if actions is not None else self.actions
-
             print("1234")
             logger.info(f"Launching {self.profile_name}")
 
@@ -262,7 +263,19 @@ class AsyncBrowserProfile:
                     try:
                         if action["action"] == "RabbyAuth":
                             print(f"RabbyAuth action: {action['action']}")
-                            await RabbyAuth(self.context, self.tab_manager).authenticate()
+                            seed_phrase = await RabbyAuth(self.context, self.tab_manager).authenticate()
+                            if seed_phrase is not None:
+                                data = self._profile.data
+                                await self._profile.update_fields(
+                                    data={
+                                        "wallet": seed_phrase,
+                                        "email": data["email"],
+                                        "proxy": data["proxy"],
+                                        "twitter": data["twitter"],
+                                        "discord": data["discord"],
+                                    }
+                                )
+                        await asyncio.sleep(5)
                     except Exception as e:
                         logger.error(f"[{self.profile_name}] Action failed: {e}")
                         continue

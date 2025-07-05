@@ -43,14 +43,16 @@ class Profile(Base):
             self.data[key] = value
 
     async def update_fields(self, **kwargs):
-        for key, value in kwargs.items():
-            if key in self.__table__.columns.keys():
-                setattr(self, key, value)
-            if key in self.data:
-                self.data[key] = value
         async with async_session() as session:
+            for key, value in kwargs.items():
+                if key in self.__table__.columns.keys():
+                    setattr(self, key, value)
+                if key in self.data:
+                    self.data[key] = value
             session.add(self)
             await session.commit()
+
+        return self.data
     def update_metadata(self, **kwargs):
         setattr(self, 'profile_metadata', kwargs)
 
