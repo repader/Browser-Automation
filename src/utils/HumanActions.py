@@ -5,13 +5,13 @@ from datetime import datetime
 
 from typing import Optional, Union
 
-from playwright.async_api import Page, Locator
+from playwright.async_api import Page, Locator, BrowserContext
 
 
 class HumanActions:
-    def __init__(self, page: Page):
+    def __init__(self, page: Page, context: BrowserContext):
         self.page = page
-
+        self.context = context
         self.session_start = datetime.now()
         self.activity_history = []
 
@@ -97,13 +97,21 @@ class HumanActions:
             await self.page.mouse.move(x, y, steps=random.randint(10, 30))
             await self.random_delay(0.2, 0.8)
 
-    async def navigate(self, url: str) -> None:
+    async def navigate(self, url: str) -> Page:
         """Переход на страницу с человеческой задержкой перед действиями"""
-        await self.page.goto(url)
+        new_page = await self.context.new_page()
+        await new_page.goto(url)
+        for page in self.context.pages:
+            if not page.is_closed() and not page == new_page:
+                await page.close()
 
         await self.random_delay(1.5, 4.0)
 
         await self.random_mouse_movement(random.randint(1, 3))
+
+        return new_page
+
+
 
     async def _add_activity(self, action: str):
         """Логирование действий для имитации реальной сессии"""
