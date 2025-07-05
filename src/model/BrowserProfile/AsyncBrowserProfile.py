@@ -10,7 +10,7 @@ from playwright.async_api import BrowserContext, async_playwright
 
 
 from src.model import RabbyAuth
-from src.utils import TabManager, ProfileRepository, Profile, async_session
+from src.utils import TabManager, ProfileRepository, Profile
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -263,12 +263,13 @@ class AsyncBrowserProfile:
                     try:
                         if action["action"] == "RabbyAuth":
                             print(f"RabbyAuth action: {action['action']}")
-                            seed_phrase = await RabbyAuth(self.context, self.tab_manager).authenticate()
+                            data = self._profile.data
+                            seed_phrase = await RabbyAuth(self.context, self.tab_manager, data["password"]).authenticate()
                             if seed_phrase is not None:
-                                data = self._profile.data
                                 await self._profile.update_fields(
                                     data={
                                         "wallet": seed_phrase,
+                                        "password": data["password"],
                                         "email": data["email"],
                                         "proxy": data["proxy"],
                                         "twitter": data["twitter"],

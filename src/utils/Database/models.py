@@ -21,6 +21,7 @@ class Profile(Base):
     name = Column(String(255), unique=True, nullable=False)
     data = Column(JSON, default={
         "wallet": None,
+        "password": None,
         "email": None,
         "proxy": None,
         "twitter": None,
