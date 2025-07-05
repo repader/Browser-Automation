@@ -51,7 +51,15 @@ async def main():
         print(profiles_config)
         await AsyncProfileManager.run_concurrently(profiles_config,max_concurrent=3)
     elif target == "test":
-        pass
+        profiles_config = [
+            {
+                "profile_name": f"Test",
+                "actions": [
+                    {"action": "Test"}
+                ]
+            }
+        ]
+        await AsyncProfileManager.run_concurrently(profiles_config, max_concurrent=3)
 
 if __name__ == "__main__":
     asyncio.run(main())
