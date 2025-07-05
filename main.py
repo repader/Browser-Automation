@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy import nullsfirst
 
 from src.model import AsyncProfileManager
-from src.utils import init_db, ProfileRepository
+from src.utils import init_db, ProfileRepository, generate_password
 
 
 async def main():
@@ -27,6 +27,7 @@ async def main():
             await profile.update_fields(
                 data={
                     "wallet": None,
+                    "password": generate_password(),
                     "email": emails[profile_id-1][0],
                     "proxy": proxies[profile_id-1][0],
                     "twitter": twitters[profile_id-1][0],
