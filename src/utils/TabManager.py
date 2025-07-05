@@ -1,40 +1,53 @@
-from typing import List
+import tracemalloc
+from typing import List, Optional
 from urllib.parse import urlparse
-
 from playwright.async_api import BrowserContext, Page
 
 
+tracemalloc.start()
 class TabManager:
     def __init__(self, context: BrowserContext):
         self.context = context
-        self.tab_urls = {}
 
-    async def open_or_switch(self, url: str, switch_if_partial_match: bool = True) -> Page:
-        target_domain = urlparse(url).netloc
+    async def _handle_new_page(self, new_page: Page):
+        """Обрабатывает открытие новой вкладки"""
+        # Ждем пока страница загрузится (или появится URL)
+        await new_page.wait_for_load_state("domcontentloaded")
+
+        if new_page.url != "about:blank":
+            print(f"Открыта новая вкладка: {new_page.url}")
+            await self._close_other_tabs(new_page)
+
+    async def _close_other_tabs(self, keep_page: Page):
+        """Закрывает все вкладки кроме указанной"""
         pages = self.context.pages
+        closed_count = 0
 
         for page in pages:
-            current_url = page.url
-            if (url == current_url) or (switch_if_partial_match and target_domain in current_url):
-                print(f"Переключено на существующую вкладку: {current_url}")
-                await page.bring_to_front()
-                return page
+            if page != keep_page and not page.is_closed():
+                await page.close()
+                closed_count += 1
 
+        print(f"Закрыто {closed_count} других вкладок")
+
+    async def open_url(self, url: str) -> Page:
+        """Открывает URL и закрывает все другие вкладки"""
+        # Закрываем все существующие вкладки
+
+        # Открываем новую вкладку
         new_page = await self.context.new_page()
         await new_page.goto(url)
-        print(f"Открыта новая вкладка: {url}")
+        for page in self.context.pages:
+            if not page.is_closed() and not page == new_page:
+                await page.close()
+
         return new_page
 
-    async def get_all_open_urls(self) -> List[str]:
-        return [page.url for page in self.context.pages]
-
-    async def close_duplicate_tabs(self):
-        seen_urls = set()
+    async def get_current_page(self) -> Optional[Page]:
+        """Возвращает текущую активную страницу (если есть)"""
         pages = self.context.pages
+        return pages[-1] if pages else None
 
-        for page in pages:
-            current_url = page.url
-            if current_url in seen_urls:
-                await page.close()
-            else:
-                seen_urls.add(current_url)
+    async def get_current_page_url(self):
+        page = await self.get_current_page()
+        return page.url if page else None
