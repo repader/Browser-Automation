@@ -1,35 +1,57 @@
 import asyncio
+
+from sqlalchemy import nullsfirst
+
 from src.model import AsyncProfileManager
-from src.utils import init_db
+from src.utils import init_db, ProfileRepository
 
 
 async def main():
     await init_db()
-    profiles_config = [
-        {
-            "profile_name": "profile_async1",
-            "actions": [
-                {"action": "RabbyAuth"}
-            ]
-        },
-        {
-            "profile_name": "profile_async2",
-            "actions": [
-                {"action": "RabbyAuth"}
-            ]
-        },{
-            "profile_name": "profile_async3",
-            "actions": [
-                {"action": "RabbyAuth"}
-            ]
-        },
-    ]
-    await AsyncProfileManager.run_concurrently(profiles_config,max_concurrent=3)
+    profile_repository = ProfileRepository()
+    target = input("Создать профили - 1\nЗапустить профили - 2\n")
+    if target == "1":
+        flag = True
+        while flag:
+            name = input("Введите имя профиля\n")
+
+            profile = await profile_repository.create_profile(name)
+            profile_id = profile.id
+
+
+            wallets = [line.split() for line in open('./data/wallets.txt', 'r').readlines()]
+            proxies = [line.split() for line in open('./data/proxy.txt', 'r').readlines()]
+            twitters = [line.split() for line in open('./data/twitter.txt', 'r').readlines()]
+            discords = [line.split() for line in open('./data/discord.txt', 'r').readlines()]
+            emails = [line.split() for line in open('./data/emails.txt', 'r').readlines()]
+
+            await profile.update_fields(
+                data={
+                    "wallet": wallets[profile_id-1][0],
+                    "email": emails[profile_id-1][0],
+                    "proxy": proxies[profile_id-1][0],
+                    "twitter": twitters[profile_id-1][0],
+                    "discord": discords[profile_id-1][0],
+                }
+            )
+
+            if input("Добавить ещё профиль? y/n\n") == "n":
+                flag = False
+
+    elif target == "2":
+        profiles_config = [
+            {
+                "profile_name": f"{name}",
+                "actions": [
+                    {"action": "RabbyAuth"}
+                ]
+            }
+            for name in [profile.name for profile in await profile_repository.get_all_profiles()]
+        ]
+        print(profiles_config)
+        await AsyncProfileManager.run_concurrently(profiles_config,max_concurrent=3)
+    elif target == "test":
+        pass
 
 if __name__ == "__main__":
-    target = input("Создать профили - 1\nЗапустить профили - 2\n")
-
-    if target == "1":
-        asyncio.run(main())
-    elif target == "2":
-        pass
+    asyncio.run(main())
