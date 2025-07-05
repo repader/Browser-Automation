@@ -3,6 +3,7 @@ from typing import List, Optional
 from urllib.parse import urlparse
 from playwright.async_api import BrowserContext, Page
 
+from src.utils import HumanActions
 
 tracemalloc.start()
 class TabManager:
@@ -32,9 +33,7 @@ class TabManager:
 
     async def open_url(self, url: str) -> Page:
         """Открывает URL и закрывает все другие вкладки"""
-        # Закрываем все существующие вкладки
 
-        # Открываем новую вкладку
         new_page = await self.context.new_page()
         await new_page.goto(url)
         for page in self.context.pages:
