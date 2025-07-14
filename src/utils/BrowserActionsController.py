@@ -1,17 +1,17 @@
 import asyncio
-import random
 import time
+import tracemalloc
 from datetime import datetime
-
+import random
 from typing import Optional, Union
 
-from playwright.async_api import Page, Locator, BrowserContext
+from playwright.async_api import BrowserContext, Page, Locator
 
-
-class HumanActions:
-    def __init__(self, page: Page, context: BrowserContext):
-        self.page = page
+tracemalloc.start()
+class BrowserActionsController:
+    def __init__(self, context: BrowserContext):
         self.context = context
+        self.page: Optional[Page] = None
         self.session_start = datetime.now()
         self.activity_history = []
 
@@ -26,6 +26,8 @@ class HumanActions:
         self.typing_speed_min = 0.05
         self.typing_speed_max = 0.3
 
+
+
     async def random_delay(self, min_sec: Optional[float] = None, max_sec: Optional[float] = None) -> None:
         """Случайная задержка между действиями"""
         min_val = min_sec if min_sec is not None else self.min_delay
@@ -33,11 +35,12 @@ class HumanActions:
         await asyncio.sleep(random.uniform(min_val, max_val))
 
     async def click(self, selector: Union[str, Locator], move_steps: int = 30) -> None:
-        """Клик с человеческим движением мыши"""
+        """Клик по элемену"""
+        self.page = await self.get_current_page()
         element = selector if isinstance(selector, Locator) else await self.page.selector(selector)
         await element.scroll_into_view_if_needed()
 
-        box = element.bounding_box()
+        box = await element.bounding_box()
         if not box:
             raise ValueError("Element not visible or not found")
 
@@ -50,10 +53,10 @@ class HumanActions:
         await self.page.mouse.down()
         await self.random_delay(0.05, 0.2)
         await self.page.mouse.up()
-        await self.random_delay()
 
     async def typing(self, selector: Union[str, Locator], text: str, error_probably: float = 0.03) -> None:
-        """Ввод текста с человеческой скоростью и возможными ошибками"""
+        """Ввод текста"""
+        self.page = await self.get_current_page()
         element = selector if isinstance(selector, Locator) else await self.page.selector(selector)
         await self.click(element)
 
@@ -68,10 +71,12 @@ class HumanActions:
 
                 for correct_char in char:
                     await element.press(correct_char)
+
                     await self.random_delay(self.typing_speed_min, self.typing_speed_max)
 
     async def scroll(self, scroll_times: Optional[int] = None) -> None:
-        """Прокрутка страницы как человек"""
+        self.page = await self.get_current_page()
+        """Прокрутка страницы"""
         if scroll_times is None:
             scroll_times = random.randint(2, 5)
 
@@ -86,11 +91,11 @@ class HumanActions:
             await self.random_delay(0.5, 1.5)
 
     async def random_mouse_movement(self, moves: int = 3) -> None:
+        self.page = await self.get_current_page()
         """Случайные движения мыши по странице"""
         viewport = self.page.viewport_size
         if not viewport:
             return
-
         for _ in range(moves):
             x = random.randint(0, viewport['width'] - 1)
             y = random.randint(0, viewport['height'] - 1)
@@ -98,7 +103,8 @@ class HumanActions:
             await self.random_delay(0.2, 0.8)
 
     async def navigate(self, url: str) -> Page:
-        """Переход на страницу с человеческой задержкой перед действиями"""
+
+        """Переход на страницу"""
         new_page = await self.context.new_page()
         await new_page.goto(url)
         for page in self.context.pages:
@@ -111,17 +117,16 @@ class HumanActions:
 
         return new_page
 
-
-
     async def _add_activity(self, action: str):
-        """Логирование действий для имитации реальной сессии"""
+        """Логирование действий"""
         self.activity_history.append({
             'time': datetime.now(),
             'action': action
         })
 
     async def perform_random_actions(self, actions_count: int = 2) -> None:
-        """Выполнение случайных действий для имитации пользователя"""
+        self.page = await self.get_current_page()
+        """Выполнение случайных действий"""
         actions = [
             self.random_mouse_movement,
             self.scroll,
@@ -132,6 +137,7 @@ class HumanActions:
         for _ in range(actions_count):
             random.choice(actions)(1)
             await self.random_delay(0.5, 1.5)
+
     async def emulate_real_session(self):
         """Имитация реального времени сессии с паузами"""
         session_duration = random.randint(5, self.max_session_minutes)
@@ -151,6 +157,7 @@ class HumanActions:
             await self._add_activity(action.__name__ if hasattr(action, '__name__') else str(action))
 
     async def solve_possible_captcha(self):
+        self.page = await self.get_current_page()
         """Попытка решения капчи"""
         if self.page.is_visible('iframe[src*="captcha"]'):
             await self._add_activity('Captcha detected - trying to solve')
@@ -160,3 +167,12 @@ class HumanActions:
             await self.random_delay(5, 10)
             return True
         return False
+
+    async def get_current_page(self) -> Optional[Page]:
+        """Возвращает текущую активную страницу (если есть)"""
+        pages = self.context.pages
+        return pages[-1] if pages else None
+
+    async def get_current_page_url(self):
+        page = await self.get_current_page()
+        return page.url if page else None

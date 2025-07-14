@@ -1,9 +1,7 @@
 import asyncio
-
-from sqlalchemy import nullsfirst
-
 from src.model import AsyncProfileManager
 from src.utils import init_db, ProfileRepository, generate_password
+from better_proxy import Proxy
 
 
 async def main():
@@ -29,7 +27,7 @@ async def main():
                     "wallet": None,
                     "password": generate_password(),
                     "email": emails[profile_id-1][0],
-                    "proxy": proxies[profile_id-1][0],
+                    "proxy": Proxy.from_str(proxies[profile_id-1][0]).as_playwright_proxy,
                     "twitter": twitters[profile_id-1][0],
                     "discord": discords[profile_id-1][0],
                 }
@@ -42,7 +40,7 @@ async def main():
             {
                 "profile_name": f"{name}",
                 "actions": [
-                    {"action": "RabbyAuth"}
+                    {"action": "ServiceAuth"}
                 ]
             }
             for name in [profile.name for profile in await profile_repository.get_all_profiles()]
@@ -54,7 +52,7 @@ async def main():
             {
                 "profile_name": f"Test",
                 "actions": [
-                    {"action": "RabbyAuth"}
+                    {"action": "ServiceAuth"}
                 ]
             }
             # for id in range(10)

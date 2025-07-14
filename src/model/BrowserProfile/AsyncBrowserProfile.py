@@ -1,7 +1,7 @@
 import asyncio
-import json
+
 import logging
-from datetime import datetime
+
 import random
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -10,11 +10,13 @@ from playwright.async_api import BrowserContext, async_playwright
 
 
 from src.model import RabbyAuth
-from src.utils import TabManager, ProfileRepository, Profile
+from src.model.AuthService import AuthService
+from src.utils import BrowserActionsController, ProfileRepository, Profile
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 extension_path = "C:/Users/Repade/AppData/Local/Google/Chrome/User Data/Profile 14/Extensions/acmacodkjbdgmoleebolmdjonilkdbch/0.93.35_0"
+extension_path_2 = "C:/Users/Repade/AppData/Local/Google/Chrome/User Data/Profile 14/Extensions/hlkenndednhfkekhgcdicdfddnkalmdm/1.13.0_0"
 
 class AsyncBrowserProfile:
     def __init__(
@@ -31,7 +33,7 @@ class AsyncBrowserProfile:
         self.profile_name = profile_name
         self.profiles_dir = Path(profiles_dir)
         self.browser_type = browser_type.lower()
-        self.extensions = extensions or [extension_path]
+        self.extensions = extensions or [extension_path, extension_path_2]
         self.proxy = proxy
         self.headless = headless
         self.timeout = timeout
@@ -44,7 +46,8 @@ class AsyncBrowserProfile:
         self.playwright = None
         self.browser = None
         self.context = None
-        self.tab_manager = None
+
+        self.controller = None
 
         self._profile: Optional[Profile] = None
         self.meta = None
@@ -55,6 +58,8 @@ class AsyncBrowserProfile:
         self._profile = await self.repo.get_profile(self.profile_name)
         if self._profile is None:
             self._profile = await self.repo.create_profile(self.profile_name)
+
+        self.proxy = self._profile["data"]["proxy"]
 
         self.meta = self._profile['profile_metadata']
 
@@ -139,7 +144,7 @@ class AsyncBrowserProfile:
 
         # Добавляем прокси если есть
         if self.proxy:
-            launch_options["proxy"] = {"server": self.proxy}
+            launch_options["proxy"] = self.proxy
 
         # Убираем дубликаты аргументов
         seen_args = set()
@@ -158,7 +163,7 @@ class AsyncBrowserProfile:
             logger.debug("Браузер успешно запущен")
 
             await self._apply_stealth_scripts()
-            self.tab_manager = TabManager(self.context)
+            self.controller = BrowserActionsController(self.context)
 
             return self.context
         except Exception as e:
@@ -255,16 +260,16 @@ class AsyncBrowserProfile:
         try:
             await self.launch()
             actions_to_execute = actions if actions is not None else self.actions
-            print("1234")
             logger.info(f"Launching {self.profile_name}")
 
             if actions_to_execute:
                 for action in actions_to_execute:
                     try:
-                        if action["action"] == "RabbyAuth":
-                            print(f"RabbyAuth action: {action['action']}")
+
+                        if action["action"] == "ServiceAuth":
+                            print(f"RabbyAuth action")
                             data = self._profile.data
-                            seed_phrase = await RabbyAuth(self.context, self.tab_manager, data["password"]).authenticate()
+                            seed_phrase = await RabbyAuth(self.context, self.controller, data["password"]).authenticate()
                             if seed_phrase is not None:
                                 await self._profile.update_fields(
                                     data={
@@ -276,7 +281,10 @@ class AsyncBrowserProfile:
                                         "discord": data["discord"],
                                     }
                                 )
-                        await asyncio.sleep(5)
+                            print("1")
+                            print(await AuthService(self.context, self.controller).login_discord(data["discord"]))
+                            print("2")
+                            await asyncio.sleep(20)
                     except Exception as e:
                         logger.error(f"[{self.profile_name}] Action failed: {e}")
                         continue
