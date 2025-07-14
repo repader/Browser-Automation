@@ -2,7 +2,6 @@ import asyncio
 from typing import List
 
 from src.model.BrowserProfile.AsyncBrowserProfile import AsyncBrowserProfile
-from src.utils import ProfileRepository
 
 
 class AsyncProfileManager:
